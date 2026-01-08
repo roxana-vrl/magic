@@ -13,7 +13,256 @@
         .game-object { position: absolute; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         
         /* SHAPES FIX */
-        .shape-circle { width: 60px; height: 60px; border-radius: 50%; border: 4px solid white; }
+        .shape-circle { width: 60px; height: 60px; border-radius: 50%; border: 4px solid white; <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Delia's Magic Kingdom</title>
+    <style>
+        :root { --accent: #db2777; --bg: #fdf2f8; }
+        body { margin: 0; overflow: hidden; background: var(--bg); font-family: 'Comic Sans MS', cursive; touch-action: manipulation; transition: background 1s; }
+        
+        /* HUD Style */
+        #hud { position: absolute; top: 15px; width: 100%; display: flex; justify-content: space-around; z-index: 100; }
+        .bubble { background: white; padding: 10px 20px; border-radius: 25px; border: 3px solid var(--accent); font-size: 16px; color: var(--accent); font-weight: bold; box-shadow: 0 4px 0 #fbcfe8; }
+
+        /* Delia's Character (Poza) */
+        #character { 
+            position: absolute; width: 90px; height: 90px; 
+            border-radius: 50%; border: 4px solid white; 
+            box-shadow: 0 0 15px var(--accent); z-index: 200; 
+            transition: all 0.7s cubic-bezier(0.19, 1, 0.22, 1); 
+            object-fit: cover; pointer-events: none;
+        }
+
+        /* Game Objects */
+        .game-object { position: absolute; width: 90px; height: 90px; display: flex; align-items: center; justify-content: center; cursor: pointer; animation: pop 0.4s ease; }
+        @keyframes pop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+        
+        .flower { width: 70px; height: 70px; border-radius: 50%; border: 4px solid white; display: flex; align-items: center; justify-content: center; font-size: 24px; color: white; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .shape-square { width: 65px; height: 65px; border: 4px solid white; background: var(--accent); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .shape-circle { width: 65px; height: 65px; border-radius: 50%; border: 4px solid white; background: var(--accent); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .shape-triangle { width: 0; height: 0; border-left: 40px solid transparent; border-right: 40px solid transparent; border-bottom: 70px solid var(--accent); filter: drop-shadow(0 4px 2px rgba(0,0,0,0.1)); }
+
+        /* Magic Trail (Inimioare) */
+        .trail-particle { position: absolute; pointer-events: none; animation: fadeOut 1s forwards; font-size: 20px; z-index: 150; }
+        @keyframes fadeOut { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(0) translateY(30px); } }
+
+        /* Overlays */
+        .full-screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; text-align: center; }
+        #start-screen { background: var(--accent); color: white; }
+        #math-screen { background: rgba(219, 39, 119, 0.98); display: none; color: white; z-index: 2000; }
+        
+        button { background: white; color: var(--accent); border: none; padding: 15px 40px; font-size: 26px; border-radius: 50px; cursor: pointer; font-weight: bold; box-shadow: 0 6px 0 #9d174d; margin: 10px; }
+        button:active { transform: translateY(3px); box-shadow: 0 3px 0 #9d174d; }
+    </style>
+</head>
+<body>
+
+<audio id="snd-success" src="child-says-yes-113117.mp3"></audio>
+<audio id="snd-error" src="no-no-no-242246.mp3"></audio>
+
+<div id="start-screen" class="full-screen">
+    <h1 style="font-size: 40px;">🌸 DELIA'S WORLD 🌸</h1>
+    <p style="font-size: 20px;">Ready for a magic adventure?</p>
+    <button onclick="startGame()">START GAME ✨</button>
+</div>
+
+<div id="math-screen" class="full-screen">
+    <h2 id="math-q" style="font-size: 50px; margin-bottom: 20px;">?</h2>
+    <div id="math-opts"></div>
+</div>
+
+<div id="hud">
+    <div class="bubble" id="lvl-txt">Level 1</div>
+    <div class="bubble" id="task-txt">Find...</div>
+    <div class="bubble" id="score-txt">⭐ 0</div>
+</div>
+
+<img id="character" src="delia.png" alt="Delia">
+
+<script>
+    let points = 0;
+    let currentLevel = 1;
+    let targetVal = "";
+    const playerName = "Delia";
+
+    function speak(text) {
+        const msg = new SpeechSynthesisUtterance();
+        msg.text = text; msg.lang = 'en-US'; msg.rate = 0.8;
+        window.speechSynthesis.speak(msg);
+    }
+
+    function startGame() {
+        document.getElementById('start-screen').style.display = 'none';
+        speak("Welcome, " + playerName + "! Let's play!");
+        spawn();
+    }
+
+    function createTrail(x, y) {
+        const p = document.createElement('div');
+        p.className = 'trail-particle';
+        p.innerText = "💖";
+        p.style.left = x + 'px'; p.style.top = y + 'px';
+        document.body.appendChild(p);
+        setTimeout(() => p.remove(), 1000);
+    }
+
+    function spawn() {
+        document.querySelectorAll('.game-object').forEach(o => o.remove());
+        
+        // Math Pop-up every 2 points
+        if (points > 0 && points % 2 === 0 && !this.mathSkip) {
+            showMathPopup();
+            this.mathSkip = true; return;
+        }
+        this.mathSkip = false;
+
+        // Level Rotation (1 to 6)
+        currentLevel = (Math.floor(points / 5) % 6) + 1;
+        document.getElementById('lvl-txt').innerText = "Level " + currentLevel;
+        updateBackground();
+
+        if (currentLevel === 1) levelColors();
+        else if (currentLevel === 2) levelMath(true); // Addition
+        else if (currentLevel === 3) levelShapes();
+        else if (currentLevel === 4) levelNumbers();
+        else if (currentLevel === 5) levelMath(false); // Subtraction
+        else levelMixed();
+    }
+
+    function updateBackground() {
+        const colors = ["#fdf2f8", "#f0fdf4", "#fff7ed", "#eff6ff", "#f5f3ff", "#fafaf9"];
+        document.body.style.background = colors[currentLevel - 1];
+    }
+
+    // --- LEVELS ---
+
+    function levelColors() {
+        const c = [{n:'red',h:'#ef4444'},{n:'blue',h:'#3b82f6'},{n:'green',h:'#22c55e'},{n:'yellow',h:'#facc15'}];
+        let t = c[Math.floor(Math.random()*c.length)];
+        targetVal = t.n;
+        setTask("Find " + t.n, "Delia, find the " + t.n + " flower");
+        c.forEach(color => {
+            const el = createObj();
+            const f = document.createElement('div'); f.className = 'flower'; f.style.background = color.h;
+            el.appendChild(f);
+            el.onclick = () => check(color.n === targetVal, el, color.n);
+            document.body.appendChild(el);
+        });
+    }
+
+    function levelMath(isAdd) {
+        let a = Math.floor(Math.random()*6)+1, b = Math.floor(Math.random()*5)+1;
+        let res = isAdd ? a+b : Math.max(a,b)-Math.min(a,b);
+        targetVal = res.toString();
+        let q = isAdd ? `${a}+${b}` : `${Math.max(a,b)}-${Math.min(a,b)}`;
+        setTask("Solve: " + q, "Delia, what is " + (isAdd?a:Math.max(a,b)) + (isAdd?" plus ":" minus ") + (isAdd?b:Math.min(a,b)) + "?");
+        [res, res+1, res-1, res+2].forEach(n => {
+            if(n < 0) n = 8;
+            const el = createObj();
+            const f = document.createElement('div'); f.className = 'flower'; f.style.background = "var(--accent)"; f.innerText = n;
+            el.appendChild(f);
+            el.onclick = () => check(n.toString() === targetVal, el, n);
+            document.body.appendChild(el);
+        });
+    }
+
+    function levelShapes() {
+        const s = [{n:'square',t:'square'},{n:'circle',t:'circle'},{n:'triangle',t:'triangle'}];
+        let t = s[Math.floor(Math.random()*s.length)];
+        targetVal = t.n;
+        setTask("Find " + t.n, "Find the " + t.n);
+        s.forEach(shape => {
+            const el = createObj();
+            const f = document.createElement('div'); f.className = 'shape-'+shape.t;
+            el.appendChild(f);
+            el.onclick = () => check(shape.n === targetVal, el, shape.n);
+            document.body.appendChild(el);
+        });
+    }
+
+    function levelNumbers() {
+        let n = Math.floor(Math.random()*15);
+        targetVal = n.toString();
+        setTask("Find Number " + n, "Find the number " + n);
+        [n, n+1, n+2, n+3].forEach(num => {
+            const el = createObj(); el.style.fontSize = "50px"; el.style.color = "var(--accent)"; el.style.fontWeight="bold"; el.innerText = num % 20;
+            el.onclick = () => check((num%20).toString() === targetVal, el, num%20);
+            document.body.appendChild(el);
+        });
+    }
+
+    function levelMixed() {
+        targetVal = "star";
+        setTask("Catch the Star!", "Delia, catch the magic star!");
+        for(let i=0; i<4; i++) {
+            const el = createObj(); el.style.fontSize = "60px"; el.innerText = (i===0) ? "⭐" : "☁️";
+            el.onclick = () => check(el.innerText === "⭐", el, "cloud");
+            document.body.appendChild(el);
+        }
+    }
+
+    // --- HELPERS ---
+
+    function setTask(t, v) { document.getElementById('task-txt').innerText = t; speak(v); }
+
+    function createObj() {
+        const el = document.createElement('div'); el.className = 'game-object';
+        // Improved positioning to avoid overlaps
+        let x, y, overlap;
+        let attempts = 0;
+        do {
+            overlap = false;
+            x = Math.random() * (window.innerWidth - 120) + 10;
+            y = Math.random() * (window.innerHeight - 300) + 150;
+            document.querySelectorAll('.game-object').forEach(o => {
+                let dx = x - parseFloat(o.style.left);
+                let dy = y - parseFloat(o.style.top);
+                if (Math.sqrt(dx*dx + dy*dy) < 110) overlap = true;
+            });
+            attempts++;
+        } while (overlap && attempts < 20);
+        el.style.left = x + 'px'; el.style.top = y + 'px';
+        return el;
+    }
+
+    function check(isCorrect, el, name) {
+        const char = document.getElementById('character');
+        createTrail(parseFloat(char.style.left)||0, parseFloat(char.style.top)||0);
+        char.style.left = el.style.left; char.style.top = (parseFloat(el.style.top)-20)+'px';
+
+        if(isCorrect) {
+            document.getElementById('snd-success').currentTime = 0; document.getElementById('snd-success').play();
+            points++; document.getElementById('score-txt').innerText = "⭐ " + points;
+            setTimeout(spawn, 800);
+        } else {
+            document.getElementById('snd-error').currentTime = 0; document.getElementById('snd-error').play();
+            speak("No Delia, that is " + name);
+        }
+    }
+
+    function showMathPopup() {
+        const scr = document.getElementById('math-screen');
+        const opts = document.getElementById('math-opts');
+        opts.innerHTML = ""; scr.style.display = "flex";
+        let a = Math.floor(Math.random()*8)+1, b = Math.floor(Math.random()*7)+1;
+        let res = a + b;
+        document.getElementById('math-q').innerText = `${a} + ${b} = ?`;
+        speak("Math Time! Delia, what is " + a + " plus " + b + "?");
+        [res, res+1, res+2].sort(()=>Math.random()-0.5).forEach(n => {
+            const btn = document.createElement('button'); btn.innerText = n;
+            btn.onclick = () => {
+                if(n === res) { document.getElementById('snd-success').play(); scr.style.display="none"; points++; spawn(); }
+                else { document.getElementById('snd-error').play(); }
+            };
+            opts.appendChild(btn);
+        });
+    }
+</script>
+</body>
+</html>}
         .shape-square { width: 60px; height: 60px; border: 4px solid white; }
         .shape-triangle { 
             width: 0; height: 0; 
@@ -175,3 +424,4 @@
 </script>
 </body>
 </html>
+
