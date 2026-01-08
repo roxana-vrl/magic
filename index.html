@@ -3,19 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Delia's Math & Magic Adventure</title>
+    <title>Delia's Infinity Adventure</title>
     <style>
         body { margin: 0; overflow: hidden; background: #fdf2f8; font-family: 'Comic Sans MS', cursive; touch-action: manipulation; }
         #hud { position: absolute; top: 15px; width: 100%; display: flex; justify-content: space-around; z-index: 100; }
-        .bubble { background: white; padding: 12px 25px; border-radius: 30px; border: 3px solid #db2777; font-size: 18px; color: #db2777; font-weight: bold; box-shadow: 0 4px 0 #fbcfe8; }
-        #character { position: absolute; font-size: 70px; z-index: 50; transition: all 0.7s ease-out; pointer-events: none; }
-        .game-object { position: absolute; width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; cursor: pointer; animation: pop 0.4s ease; font-weight: bold; }
-        @keyframes pop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
-
-        .shape-flower { width: 80px; height: 80px; border-radius: 50%; border: 5px solid white; display: flex; align-items: center; justify-content: center; font-size: 30px; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .bubble { background: white; padding: 10px 15px; border-radius: 20px; border: 3px solid #db2777; font-size: 14px; color: #db2777; font-weight: bold; }
+        #character { position: absolute; font-size: 60px; z-index: 50; transition: all 0.6s ease-out; pointer-events: none; }
         
-        #overlay { position: fixed; inset: 0; background: rgba(219, 39, 119, 0.98); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; color: white; text-align: center; }
-        .opt-btn { background: white; color: #db2777; border: none; padding: 15px 35px; font-size: 30px; border-radius: 20px; margin: 10px; cursor: pointer; font-weight: bold; box-shadow: 0 5px 0 #9d174d; }
+        .game-object { position: absolute; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        
+        /* SHAPES FIX */
+        .shape-circle { width: 60px; height: 60px; border-radius: 50%; border: 4px solid white; }
+        .shape-square { width: 60px; height: 60px; border: 4px solid white; }
+        .shape-triangle { 
+            width: 0; height: 0; 
+            border-left: 35px solid transparent; 
+            border-right: 35px solid transparent; 
+            border-bottom: 60px solid #db2777; 
+        }
+
+        #math-screen { position: fixed; inset: 0; background: rgba(219, 39, 119, 0.98); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; color: white; }
+        .math-btn { background: white; color: #db2777; border: none; padding: 15px 30px; font-size: 25px; border-radius: 15px; margin: 10px; font-weight: bold; }
         #start-screen { position: fixed; inset: 0; background: #db2777; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
     </style>
 </head>
@@ -25,35 +33,27 @@
 <audio id="snd-error" src="no-no-no-242246.mp3"></audio>
 
 <div id="start-screen">
-    <h1 style="font-size: 35px;">🌸 DELIA'S MATH GARDEN 🌸</h1>
-    <p>Let's count and play, Delia!</p>
-    <button class="opt-btn" onclick="startGame()">START ✨</button>
+    <h1>🌸 DELIA'S WORLD 🌸</h1>
+    <button class="math-btn" onclick="startGame()">START ✨</button>
 </div>
 
-<div id="overlay">
-    <h2 id="overlay-title" style="font-size: 45px;">Math Time!</h2>
-    <div id="overlay-options"></div>
+<div id="math-screen">
+    <h2 id="math-q" style="font-size: 40px;">?</h2>
+    <div id="math-opts"></div>
 </div>
 
 <div id="hud">
-    <div class="bubble" id="level-display">Level 1</div>
-    <div class="bubble" id="task">Loading...</div>
-    <div class="bubble" id="score">⭐ 0</div>
+    <div class="bubble" id="lvl-txt">Level 1</div>
+    <div class="bubble" id="task-txt">Find...</div>
+    <div class="bubble" id="score-txt">⭐ 0</div>
 </div>
 
 <div id="character">🐝</div>
 
 <script>
     let points = 0;
-    let currentLevel = 1;
     const playerName = "Delia";
-    let targetValue;
-
-    const colors = [
-        { n: 'red', h: '#ef4444' }, { n: 'blue', h: '#3b82f6' },
-        { n: 'yellow', h: '#facc15' }, { n: 'pink', h: '#f472b6' },
-        { n: 'green', h: '#22c55e' }
-    ];
+    let targetId = "";
 
     function speak(text) {
         const msg = new SpeechSynthesisUtterance();
@@ -69,134 +69,108 @@
     function spawn() {
         document.querySelectorAll('.game-object').forEach(o => o.remove());
         
-        // EXERCIȚIU DE MATEMATICĂ la fiecare 3 puncte
-        if (points > 0 && points % 3 === 0 && !this.mathDone) {
+        if (points > 0 && points % 2 === 0 && !this.isMathDone) {
             showMathPopup();
-            this.mathDone = true;
+            this.isMathDone = true;
             return;
         }
-        this.mathDone = false;
+        this.isMathDone = false;
 
-        currentLevel = Math.floor(points / 12) + 1;
-        document.getElementById('level-display').innerText = "Level " + currentLevel;
-        
-        const char = document.getElementById('character');
-        if (currentLevel === 1) { char.innerText = "🐝"; spawnColors(); }
-        else if (currentLevel === 2) { char.innerText = "🦋"; spawnMathFlowers(); }
-        else { char.innerText = "🧚"; spawnMathFlowersAdvanced(); }
+        let level = (Math.floor(points / 6) % 3) + 1; // Simplificat la 3 tipuri de nivele pentru claritate
+        document.getElementById('lvl-txt').innerText = "Level " + level;
+
+        if (level === 1) levelColors();
+        else if (level === 2) levelShapes();
+        else levelNumbers();
     }
 
-    // LEVEL 1: CULORI
-    function spawnColors() {
-        let t = colors[Math.floor(Math.random() * colors.length)];
-        targetValue = t.n;
-        document.getElementById('task').innerText = "Find: " + targetValue;
-        speak(playerName + ", find the " + targetValue + " flower");
+    // --- GENERARE OBIECTE ---
 
-        colors.forEach(c => {
+    function levelColors() {
+        const c = [{n:'red',h:'#ef4444'}, {n:'blue',h:'#3b82f6'}, {n:'green',h:'#22c55e'}, {n:'yellow',h:'#facc15'}];
+        let t = c[Math.floor(Math.random()*c.length)];
+        targetId = t.n;
+        document.getElementById('task-txt').innerText = "Find: " + t.n;
+        speak(playerName + ", find the " + t.n + " flower");
+
+        c.forEach(color => {
             const el = createObj();
-            const flower = document.createElement('div');
-            flower.className = 'shape-flower';
-            flower.style.background = c.h;
-            el.appendChild(flower);
-            el.onclick = () => check(c.n === targetValue, el, c.n);
+            const f = document.createElement('div'); f.className = 'shape-circle'; f.style.background = color.h;
+            el.appendChild(f);
+            el.onclick = () => check(color.n === targetId, el, color.n);
             document.body.appendChild(el);
         });
     }
 
-    // LEVEL 2: MATEMATICĂ VIZUALĂ (Find the result)
-    function spawnMathFlowers() {
-        let a = Math.floor(Math.random() * 5) + 1;
-        let b = Math.floor(Math.random() * 4) + 1;
-        targetValue = (a + b).toString();
-        
-        document.getElementById('task').innerText = `Find: ${a} + ${b}`;
-        speak(playerName + ", what is " + a + " plus " + b + "?");
+    function levelShapes() {
+        const s = [{n:'square',t:'square'},{n:'circle',t:'circle'},{n:'triangle',t:'triangle'}];
+        let t = s[Math.floor(Math.random()*s.length)];
+        targetId = t.n;
+        document.getElementById('task-txt').innerText = "Find: " + t.n;
+        speak(playerName + ", find the " + t.n);
 
-        [a+b, a+b+1, a+b-1, a+b+2].forEach(n => {
-            if(n < 0) n = 9;
+        s.forEach(shape => {
             const el = createObj();
-            const flower = document.createElement('div');
-            flower.className = 'shape-flower';
-            flower.style.background = "#db2777";
-            flower.innerText = n;
-            el.appendChild(flower);
-            el.onclick = () => check(n.toString() === targetValue, el, "number " + n);
+            const f = document.createElement('div'); 
+            if(shape.t === 'triangle') {
+                f.className = 'shape-triangle';
+            } else {
+                f.className = 'shape-' + shape.t; f.style.backgroundColor = "#db2777";
+            }
+            el.appendChild(f);
+            el.onclick = () => check(shape.n === targetId, el, shape.n);
             document.body.appendChild(el);
         });
     }
 
-    // POPUP MATEMATICĂ (Cel care oprește jocul)
-    function showMathPopup() {
-        const overlay = document.getElementById('overlay');
-        const opts = document.getElementById('overlay-options');
-        opts.innerHTML = ""; overlay.style.display = "flex";
-        
-        let limit = currentLevel * 5;
-        let a = Math.floor(Math.random() * limit) + 1;
-        let b = Math.floor(Math.random() * limit) + 1;
-        let isAdd = Math.random() > 0.4;
-        
-        let res, qText, speakText;
-        if(isAdd) {
-            res = a + b;
-            qText = `${a} + ${b} = ?`;
-            speakText = `${playerName}, what is ${a} plus ${b}?`;
-        } else {
-            let max = Math.max(a, b);
-            let min = Math.min(a, b);
-            res = max - min;
-            qText = `${max} - ${min} = ?`;
-            speakText = `${playerName}, what is ${max} minus ${min}?`;
-        }
+    function levelNumbers() {
+        let n = Math.floor(Math.random()*10);
+        targetId = n.toString();
+        document.getElementById('task-txt').innerText = "Find Number: " + n;
+        speak(playerName + ", find number " + n);
 
-        document.getElementById('overlay-title').innerText = qText;
-        speak(speakText);
-
-        [res, res+1, res-1].filter(n => n >= 0).sort(()=>Math.random()-0.5).forEach(n => {
-            const btn = document.createElement('button');
-            btn.className = "opt-btn"; btn.innerText = n;
-            btn.onclick = () => {
-                if(n === res) {
-                    document.getElementById('snd-success').play();
-                    overlay.style.display="none"; points++; spawn();
-                } else { document.getElementById('snd-error').play(); }
-            };
-            opts.appendChild(btn);
+        [n, (n+1)%10, (n+2)%10].forEach(num => {
+            const el = createObj(); el.style.fontSize = "50px"; el.style.color = "#db2777"; el.innerText = num; el.style.fontWeight="bold";
+            el.onclick = () => check(num.toString() === targetId, el, "number " + num);
+            document.body.appendChild(el);
         });
     }
 
     function createObj() {
-        const el = document.createElement('div');
-        el.className = 'game-object';
-        let x, y, overlap;
-        do {
-            overlap = false;
-            x = Math.random() * (window.innerWidth - 130) + 15;
-            y = Math.random() * (window.innerHeight - 300) + 150;
-            document.querySelectorAll('.game-object').forEach(o => {
-                if (Math.abs(x - parseFloat(o.style.left)) < 110 && Math.abs(y - parseFloat(o.style.top)) < 110) overlap = true;
-            });
-        } while (overlap);
-        el.style.left = x + 'px'; el.style.top = y + 'px';
+        const el = document.createElement('div'); el.className = 'game-object';
+        // Poziționare simplă fără a forța non-overlap extrem care blochează desenarea
+        el.style.left = (Math.random()*70 + 5) + '%'; 
+        el.style.top = (Math.random()*60 + 20) + '%';
         return el;
     }
 
     function check(isCorrect, el, name) {
-        const char = document.getElementById('character');
-        char.style.left = el.style.left; char.style.top = el.style.top;
         if(isCorrect) {
-            document.getElementById('snd-success').currentTime = 0;
-            document.getElementById('snd-success').play();
-            points++;
-            document.getElementById('score').innerText = "⭐ " + points;
-            setTimeout(spawn, 800);
+            document.getElementById('snd-success').currentTime = 0; document.getElementById('snd-success').play();
+            points++; document.getElementById('score-txt').innerText = "⭐ " + points;
+            spawn();
         } else {
-            document.getElementById('snd-error').currentTime = 0;
-            document.getElementById('snd-error').play();
-            speak("No Delia, that is " + name);
-            el.style.opacity = "0.3";
+            document.getElementById('snd-error').currentTime = 0; document.getElementById('snd-error').play();
+            speak("No, that is " + name);
         }
+    }
+
+    function showMathPopup() {
+        const scr = document.getElementById('math-screen');
+        const opts = document.getElementById('math-opts');
+        opts.innerHTML = ""; scr.style.display = "flex";
+        let a = Math.floor(Math.random()*5)+1, b = Math.floor(Math.random()*4)+1;
+        let res = a + b;
+        document.getElementById('math-q').innerText = `${a} + ${b} = ?`;
+        speak(playerName + ", what is " + a + " plus " + b + "?");
+        [res, res+1, res+2].sort(()=>Math.random()-0.5).forEach(n => {
+            const btn = document.createElement('button'); btn.className = "math-btn"; btn.innerText = n;
+            btn.onclick = () => {
+                if(n === res) { document.getElementById('snd-success').play(); scr.style.display="none"; points++; spawn(); }
+                else { document.getElementById('snd-error').play(); }
+            };
+            opts.appendChild(btn);
+        });
     }
 </script>
 </body>
